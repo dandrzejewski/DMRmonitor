@@ -3,59 +3,66 @@
    <head>
       <script type="text/javascript">
          var sock = null;
-         var ellog = null;
-         
-         window.onload = function() {
-            var wsuri;
-            
-            ellog = document.getElementById('log');
-            dmrlink_table = document.getElementById('dmrlink');
-            confbridge_table = document.getElementById('bridge');
-            
-            wsuri = "ws://" + window.location.hostname + ":9000";
+         var ellog;
+         var dmrlink_table;
+         var confbridge_table;
+         var timeout;
 
-            
-            if ("WebSocket" in window) {
-               sock = new WebSocket(wsuri);
-            } else if ("MozWebSocket" in window) {
-               sock = new MozWebSocket(wsuri);
-            } else {
-               log("Browser does not support WebSocket!");
-            }
-            
-            if (sock) {
-               sock.onopen = function() {
-                  log("Connected to " + wsuri);
-               }
-               sock.onclose = function(e) {
-                  log("Connection closed (wasClean = " + e.wasClean + ", code = " + e.code + ", reason = '" + e.reason + "')");
-                  dmrlink_table.innerHTML = "";
-                  confbridge_table.innerHTML = "";
-                  sock = null;
-               }
-               sock.onmessage = function(e) {
-                   var opcode = e.data.slice(0,1);
-                   var message = e.data.slice(1);
-                   if (opcode == "d") {
-                       dmrlink(message);
-                   } else if (opcode == "b") {
-                       confbridge(message);
-                   } else if (opcode == "l") {
-                       log(message);
-                   } else if (opcode == "q") {
-                       log(message);
-                       dmrlink_table.innerHTML = "";
-                       confbridge_table.innerHTML = "";
-                   } else {
-                       log("Unknown Message Received: " + message);
-                   }
-               }
-            }
+         var wsuri = "ws://" + window.location.hostname + ":9000";
+
+         window.onload = function() {
+             ellog = document.getElementById('log');
+             dmrlink_table = document.getElementById('dmrlink');
+             confbridge_table = document.getElementById('bridge');
+             doWebSocket();
+         };
+
+         function doWebSocket() {
+             if ("WebSocket" in window) {
+                 sock = new WebSocket(wsuri);
+             } else if ("MozWebSocket" in window) {
+                 sock = new MozWebSocket(wsuri);
+             } else {
+                 log("Browser does not support WebSocket!");
+             }
+
+             if (sock) {
+                 sock.onopen = function() {
+                     log("Connected to " + wsuri);
+                 };
+                 sock.onclose = function(e) {
+                     log("Connection closed (wasClean = " + e.wasClean + ", code = " + e.code + ", reason = '" + e.reason + "')");
+                     dmrlink_table.innerHTML = "<h2>Connection Failure, Stand By.</h2>";
+                     confbridge_table.innerHTML = "";
+                     sock = null;
+                     if (timeout != null) {
+                         clearTimeout(timeout);
+                     }
+                     timeout = setTimeout(doWebSocket(), 10000)
+                 };
+                 sock.onmessage = function(e) {
+                     var opcode = e.data.slice(0,1);
+                     var message = e.data.slice(1);
+                     if (opcode === "d") {
+                         dmrlink(message);
+                     } else if (opcode === "b") {
+                         confbridge(message);
+                     } else if (opcode === "l") {
+                         log(message);
+                     } else if (opcode === "q") {
+                         log(message);
+                         dmrlink_table.innerHTML = "";
+                         confbridge_table.innerHTML = "";
+                     } else {
+                         log("Unknown Message Received: " + message);
+                     }
+                 }
+             }
          };
          
          function dmrlink(_msg) {
              dmrlink_table.innerHTML = _msg;
-         };
+         }
          
          function confbridge(_msg) {
              confbridge_table.innerHTML = _msg;
